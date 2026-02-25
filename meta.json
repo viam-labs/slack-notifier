@@ -2,7 +2,7 @@
   "$schema": "https://dl.viam.dev/module.schema.json",
   "module_id": "10zing:slack-notifier",
   "visibility": "public",
-  "url": "",
+  "url": "https://github.com/viam-labs/slack-notifier",
   "description": "Modular generic component: notifications",
   "applications": null,
   "markdown_link": "README.md",
