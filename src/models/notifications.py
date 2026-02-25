@@ -1,6 +1,7 @@
 import asyncio
 import json
 import urllib.request
+from datetime import datetime, timezone
 from typing import (Any, ClassVar, Dict, Mapping, Optional, Sequence, Tuple)
 
 from google.protobuf.json_format import MessageToDict
@@ -53,8 +54,9 @@ class Notifications(Generic, EasyResource):
     ) -> Mapping[str, ValueTypes]:
         """
         Accepts:
-          {"action": "checkout", "item_name": "Hex Wrench Set #3", "tag_id": "RF-0042", "image_url": "https://..."}
-          {"action": "return",   "item_name": "Hex Wrench Set #3", "tag_id": "RF-0042"}
+          {"action": "checkout",    "item_name": "Hex Wrench Set #3", "tag_id": "RF-0042", "image_url": "https://..."}
+          {"action": "return",      "item_name": "Hex Wrench Set #3", "tag_id": "RF-0042"}
+          {"action": "late_notice", "item_name": "Hex Wrench Set #3", "tag_id": "RF-0042", "days_overdue": 3, "image_url": "https://..."}
         """
         result = {}
         action    = command.get("action", "")
@@ -70,12 +72,18 @@ class Notifications(Generic, EasyResource):
             message = self._build_return_message(item_name, tag_id)
             result["sent"] = await self._send_slack(message)
             result["action"] = "return"
+        elif action == "late_notice":
+            days_overdue = int(command.get("days_overdue", 1))
+            message = self._build_late_notice_message(item_name, tag_id, days_overdue, image_url)
+            result["sent"] = await self._send_slack(message)
+            result["action"] = "late_notice"
         else:
             result["error"] = f"unknown action: {action}"
 
         return result
 
     def _build_checkout_message(self, item_name: str, tag_id: str, image_url: str) -> dict:
+        timestamp = datetime.now(timezone.utc).strftime("%-I:%M %p UTC")
         blocks = [
             {
                 "type": "header",
@@ -85,6 +93,37 @@ class Notifications(Generic, EasyResource):
                 "type": "section",
                 "fields": [
                     {"type": "mrkdwn", "text": f"*Item:*\n{item_name}"},
+                    {"type": "mrkdwn", "text": f"*Tag ID:*\n{tag_id}"},
+                    {"type": "mrkdwn", "text": f"*Station:*\n{self.station_id}"},
+                    {"type": "mrkdwn", "text": f"*Time:*\n{timestamp}"},
+                ]
+            }
+        ]
+        if image_url:
+            blocks.append({
+                "type": "image",
+                "image_url": image_url,
+                "alt_text": f"Checkout photo for {item_name}"
+            })
+        return {"blocks": blocks}
+
+    def _build_late_notice_message(self, item_name: str, tag_id: str, days_overdue: int, image_url: str) -> dict:
+        day_str = "day" if days_overdue == 1 else "days"
+        blocks = [
+            {
+                "type": "header",
+                "text": {"type": "plain_text", "text": "⚠️ Overdue Item — Please Return"}
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*{item_name}* has been checked out for *{days_overdue} {day_str}*.\nPlease return it to any checkout station."
+                }
+            },
+            {
+                "type": "section",
+                "fields": [
                     {"type": "mrkdwn", "text": f"*Tag ID:*\n{tag_id}"},
                     {"type": "mrkdwn", "text": f"*Station:*\n{self.station_id}"},
                 ]

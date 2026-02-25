@@ -74,4 +74,33 @@ Posts an "Item Returned" message to Slack.
 
 ---
 
+### `late_notice`
+
+Posts an "Overdue Item — Please Return" message to Slack. Optionally includes the photo from the original checkout.
+
+```json
+{
+  "action": "late_notice",
+  "item_name": "Hex Wrench Set #3",
+  "tag_id": "RF-0042",
+  "days_overdue": 3,
+  "image_url": "https://example.com/checkout-photo.jpg"
+}
+```
+
+| Field          | Type    | Inclusion | Description                                             |
+|----------------|---------|-----------|---------------------------------------------------------|
+| `action`       | string  | Required  | Must be `"late_notice"`.                                |
+| `item_name`    | string  | Required  | Display name of the overdue item.                       |
+| `tag_id`       | string  | Required  | RFID or barcode tag identifier.                         |
+| `days_overdue` | integer | Required  | Number of days the item has been checked out.           |
+| `image_url`    | string  | Optional  | URL of the original checkout photo.                     |
+
+**Response:**
+```json
+{"action": "late_notice", "sent": true}
+```
+
+---
+
 If Slack delivery fails, `"sent"` will be `false` and the error is logged to the Viam robot logs.
