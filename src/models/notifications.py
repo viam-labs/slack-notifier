@@ -3,6 +3,8 @@ import json
 import urllib.request
 from typing import (Any, ClassVar, Dict, Mapping, Optional, Sequence, Tuple)
 
+from google.protobuf.json_format import MessageToDict
+
 from typing_extensions import Self
 from viam.components.generic import *
 from viam.proto.app.robot import ComponentConfig
@@ -26,19 +28,19 @@ class Notifications(Generic, EasyResource):
         cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
     ) -> Self:
         notifier = super().new(config, dependencies)
-        fields = config.attributes.fields
-        notifier.slack_webhook_url = fields["slack_webhook_url"].string_value
-        notifier.station_id = fields.get("station_id", {}).string_value or "unknown-station"
+        attrs = MessageToDict(config.attributes, preserving_proto_field_name=True)
+        notifier.slack_webhook_url = attrs.get("slack_webhook_url", "")
+        notifier.station_id = attrs.get("station_id", "unknown-station") or "unknown-station"
         return notifier
 
     @classmethod
     def validate_config(
         cls, config: ComponentConfig
     ) -> Tuple[Sequence[str], Sequence[str]]:
-        fields = config.attributes.fields
-        if "slack_webhook_url" not in fields:
+        attrs = MessageToDict(config.attributes, preserving_proto_field_name=True)
+        if "slack_webhook_url" not in attrs:
             raise Exception("missing required slack_webhook_url attribute")
-        if not fields["slack_webhook_url"].string_value:
+        if not attrs["slack_webhook_url"]:
             raise Exception("slack_webhook_url cannot be empty")
         return [], []
 
