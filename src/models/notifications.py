@@ -74,7 +74,8 @@ class Notifications(Generic, EasyResource):
             result["action"] = "return"
         elif action == "late_notice":
             days_overdue = int(command.get("days_overdue", 1))
-            message = self._build_late_notice_message(item_name, tag_id, days_overdue, image_url)
+            checked_out_by = str(command.get("checked_out_by", "")).replace("@viam.com", "")
+            message = self._build_late_notice_message(item_name, tag_id, days_overdue, image_url, checked_out_by)
             result["sent"] = await self._send_slack(message)
             result["action"] = "late_notice"
         else:
@@ -107,8 +108,11 @@ class Notifications(Generic, EasyResource):
             })
         return {"blocks": blocks}
 
-    def _build_late_notice_message(self, item_name: str, tag_id: str, days_overdue: int, image_url: str) -> dict:
+    def _build_late_notice_message(self, item_name: str, tag_id: str, days_overdue: int, image_url: str, checked_out_by: str = "") -> dict:
         day_str = "day" if days_overdue == 1 else "days"
+        body = f"*{item_name}* has been checked out for *{days_overdue} {day_str}*.\nPlease return it to any checkout station."
+        if checked_out_by:
+            body += f"\nChecked out by: {checked_out_by}"
         blocks = [
             {
                 "type": "header",
@@ -118,14 +122,13 @@ class Notifications(Generic, EasyResource):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*{item_name}* has been checked out for *{days_overdue} {day_str}*.\nPlease return it to any checkout station."
+                    "text": body
                 }
             },
             {
                 "type": "section",
                 "fields": [
                     {"type": "mrkdwn", "text": f"*Tag ID:*\n{tag_id}"},
-                    {"type": "mrkdwn", "text": f"*Station:*\n{self.station_id}"},
                 ]
             }
         ]
